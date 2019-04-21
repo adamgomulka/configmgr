@@ -56,23 +56,36 @@ type Config struct {
 func (c ConfigFile) Init() (e error) {
     file_p, e := os.Open(c.Path)
     if e == nil {
-        i, _ := file_p.Stat()
+        i, e := file_p.Stat()
+        if e != nil {
+            fmt.Print(e.Error())
+        }
+        fmt.Printf("Config file size: %s", string(i.Size()))
         c.Size = int(i.Size())
     } else {
-        fmt.Sprintf("[FATAL] Could not open config file at path %s", c.Path)
+        fmt.Printf("[FATAL] Could not open config file. %s", e.Error())
         return
     }
     y := make([]byte, c.Size)
-    n, _ := file_p.Read(y)
+    n, e := file_p.Read(y)
+    if e != nil {
+        fmt.Print(e.Error())
+    }
     if n != c.Size {
-        fmt.Sprintf("[WARN] Number of bytes read into config array (%s) does not match config file size (%s). Some directives may have been truncated.", string(n), string(c.Size))
+        fmt.Printf("[WARN] Number of bytes read into config array (%s) does not match config file size (%s). Some directives may have been truncated.", string(n), string(c.Size))
     }
     e = c.ParseYaml(y)
+    if e != nil {
+        fmt.Print(e.Error())
+    }
     return
 }
 
 func (c ConfigFile) ParseYaml(y []byte) (e error) {
     e = yaml.Unmarshal(y, c.Config)
+    if e != nil {
+        fmt.Printf(e.Error())
+    }
     return
 }
 
@@ -83,17 +96,20 @@ func (f File) Handle() (e error) {
             if f.Directory {
                 e = os.Mkdir(f.Path, f.Mode)
                 if e != nil {
+                    fmt.Print(e.Error())
                     return
                 }
             } else {
                 if len(f.Content) > 0 {
                     e = ioutil.WriteFile(f.Path, f.Content, f.Mode)
                     if e != nil {
+                        fmt.Print(e.Error())
                         return
                     }
                 } else {
                     _, e = os.Create(f.Path)
                     if e != nil {
+                        fmt.Print(e.Error())
                         return
                     }
                 }
@@ -102,14 +118,17 @@ func (f File) Handle() (e error) {
             return fmt.Errorf("File %s does not exist and Create is not set.", f.Path)
         }
     } else if e != nil {
+        fmt.Print(e.Error())
         return
     }
     e = os.Chown(f.Path, f.Owner, f.Group)
     if e != nil {
+        fmt.Print(e.Error())
         return
     }
     e = os.Chmod(f.Path, f.Mode)
     if e != nil {
+        fmt.Print(e.Error())
         return
     }
     return
@@ -126,8 +145,12 @@ func (d Deb) Handle() (e error) {
             if e == nil {
                 cmd = exec.Command("apt", "upgrade", "-y", d.Name)
                 e = cmd.Run()
+                if e != nil {
+                    fmt.Print(e.Error())
+                }
                 return
             } else {
+                fmt.Print(e.Error())
                 return
             }
         }
@@ -136,9 +159,13 @@ func (d Deb) Handle() (e error) {
         if d.CheckDebInstalledStatus() {
             cmd := exec.Command("apt", "remove", "-y", d.Name)
             e = cmd.Run()
+            if e != nil {
+                fmt.Print(e.Error())
+            }
             return
         } else {
             e = fmt.Errorf("Error: Package %s already installed", d.Name)
+            fmt.Print(e.Error())
             return
         }
     }
@@ -163,13 +190,22 @@ func (s Service) Handle() (e error) {
         if s.Restart{
             c := exec.Command("service", s.Name, "restart")
             e = c.Run()
+            if e != nil {
+                fmt.Print(e.Error())
+            }
         } else {
             c := exec.Command("service", s.Name, "start")
             e = c.Run()
+            if e != nil {
+                fmt.Print(e.Error())
+            }
         }
     } else {
         c := exec.Command("service", s.Name, "stop")
         e = c.Run()
+        if e != nil {
+            fmt.Print(e.Error())
+        }
     }
     return
 }
@@ -200,6 +236,6 @@ func main() {
     if e == nil {
         run := config_file.Config.Execute()
         y, _ := yaml.Marshal(run)
-        fmt.Print(y)
+        fmt.Print(string(y))
     }
 }
