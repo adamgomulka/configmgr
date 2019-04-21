@@ -7,6 +7,7 @@ import (
     "bufio"
     "io/ioutil"
     "time"
+    "strconv"
 
     "gopkg.in/yaml.v2"
 )
@@ -54,13 +55,15 @@ type Config struct {
 }
 
 func (c ConfigFile) Init() (e error) {
+    fmt.Printf("Config File Path: %s %s", c.Path, "\n")
     file_p, e := os.Open(c.Path)
     if e == nil {
         i, e := file_p.Stat()
         if e != nil {
             fmt.Print(e.Error())
         }
-        fmt.Printf("Config file size: %s", string(i.Size()))
+        fmt.Printf("Pointer created. File Name (as seen by pointer) is: %s %s", i.Name(), "\n")
+        fmt.Printf("Config file size: %s %s", strconv.FormatInt(i.Size(), 10), "\n")
         c.Size = int(i.Size())
     } else {
         fmt.Printf("[FATAL] Could not open config file. %s", e.Error())
@@ -212,14 +215,17 @@ func (s Service) Handle() (e error) {
 
 func (c Config) Execute() (r Run) {
     r = Run{Start: time.Now(), Results: map[string][]error{}}
+    fmt.Printf("Number of Files to be Targeted: %s %s", strconv.Itoa(len(c.File)), "\n")
     file_r := make([]error, len(c.File))
     for n, f := range c.File {
         file_r[n] = f.Handle()
     }
+    fmt.Printf("Number of Debian packages to be targeted: %s %s", strconv.Itoa(len(c.Deb)), "\n")
     deb_r := make([]error, len(c.Deb))
     for n, d := range c.Deb {
         deb_r[n] = d.Handle()
     }
+    fmt.Printf("Number of system services to be targeted: %s %s", strconv.Itoa(len(c.Service)), "\n")
     service_r := make([]error, len(c.Service))
     for n, s := range c.Service {
         service_r[n] = s.Handle()
