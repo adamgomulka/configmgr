@@ -120,6 +120,17 @@ func (d Deb) Handle() (e error) {
     if d.Install {
         cmd := exec.Command("apt", "install", "-y", d.Name)
         e = cmd.Run()
+        if d.Upgrade {
+            cmd := exec.Command("apt", "update")
+            e = cmd.Run()
+            if e == nil {
+                cmd = exec.Command("apt", "upgrade", "-y", d.Name)
+                e = cmd.Run()
+                return
+            } else {
+                return
+            }
+        }
         return
     } else if d.Remove {
         if d.CheckDebInstalledStatus() {
@@ -128,16 +139,6 @@ func (d Deb) Handle() (e error) {
             return
         } else {
             e = fmt.Errorf("Error: Package %s already installed", d.Name)
-            return
-        }
-    } else if d.Upgrade {
-        cmd := exec.Command("apt", "update")
-        e = cmd.Run()
-        if e == nil {
-            cmd = exec.Command("apt", "upgrade", "-y", d.Name)
-            e = cmd.Run()
-            return
-        } else {
             return
         }
     }
