@@ -45,7 +45,7 @@ type Run struct {
 type ConfigFile struct {
     Path string
     Size int
-    Config Config
+    Config *Config
 }
 
 type Config struct {
@@ -77,6 +77,7 @@ func (c ConfigFile) Init() (e error) {
     if n != c.Size {
         fmt.Printf("[WARN] Number of bytes read into config array (%s) does not match config file size (%s). Some directives may have been truncated.", string(n), string(c.Size))
     }
+    c.Config = &Config{}
     e = c.ParseYaml(y)
     if e != nil {
         fmt.Print(e.Error())
@@ -85,6 +86,7 @@ func (c ConfigFile) Init() (e error) {
 }
 
 func (c ConfigFile) ParseYaml(y []byte) (e error) {
+    fmt.Printf("Config file contents: %s %s", "\n", string(y))
     e = yaml.Unmarshal(y, c.Config)
     if e != nil {
         fmt.Printf(e.Error())
@@ -167,7 +169,7 @@ func (d Deb) Handle() (e error) {
             }
             return
         } else {
-            e = fmt.Errorf("Error: Package %s already installed", d.Name)
+            e = fmt.Errorf("Error: Package %s marked for removal, but is not present on the system.", d.Name)
             fmt.Print(e.Error())
             return
         }
@@ -240,8 +242,11 @@ func main() {
     config_file := ConfigFile{Path: config_file_path}
     e := config_file.Init()
     if e == nil {
+        fmt.Printf("Number of File directives: %s", strconv.Itoa(len(config_file.(*Config).File)))
+/*
         run := config_file.Config.Execute()
         y, _ := yaml.Marshal(run)
         fmt.Print(string(y))
+*/
     }
 }
