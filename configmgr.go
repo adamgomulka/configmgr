@@ -49,9 +49,9 @@ type ConfigFile struct {
 }
 
 type Config struct {
-    File []File
-    Deb []Deb
-    Service []Service
+    File []File `yaml:"file"`
+    Deb []Deb `yaml:"deb"`
+    Service []Service `yaml:"serice"`
 }
 
 func (c ConfigFile) Init() (e error) {
