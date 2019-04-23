@@ -39,6 +39,7 @@ type Run struct {
     Start time.Time
     End time.Time
     Config config
+    // TODO: IMPLEMENT BETTER NAMING (IDEALLY USING A CHECKSUM) FOR ITERATIONS OF A DIRECTIVE.
     Results map[int]error
 }
 
@@ -80,23 +81,29 @@ func (c ConfigFile) init() (e error) {
     if n != c.Size {
         fmt.Printf("[WARN] Number of bytes read into config array (%s) does not match config file size (%s). Some directives may have been truncated.", string(n), string(c.Size))
     }
-    e = c.ParseYaml(y)
+    e = yaml.Unmarshal(y, &c)
     if e != nil {
         fmt.Print(e.Error())
     }
     return
 }
 
-func (c ConfigFile) ParseYaml(y []byte) (e error) {
-    fmt.Printf("Config file contents: %s %s", "\n", string(y))
-    e = yaml.Unmarshal(y, c)
+func (c *ConfigFile) UnmarshalYAML(unmarshal func(interface{}) error) (e error) {
+    yamlConfigFile := make(map[string][]interface{})
+    e = unmarshal(&yamlConfigFile)
     if e != nil {
         fmt.Printf(e.Error())
+        return
+    }
+    for _, d := range yamlConfigFile["directives"] {
+        if r, t := d.(directive); t {
+            c.directives = append(c.directives, r)
+        }
     }
     return
 }
 
-func (f file) Handle() (e error) {
+func (f file) handle() (e error) {
     _, e = os.Open(f.Path)
     if os.IsNotExist(e) {
         if f.Create {
@@ -219,11 +226,28 @@ func (s service) handle() (e error) {
 
 func (c ConfigFile) Execute() (r Run) {
     r = Run{Start: time.Now(), Results: map[int]error{}, Config: &c}
+/*
+    fmt.Printf("Number of Files to be Targeted: %s %s", strconv.Itoa(len(c.file)), "\n")
+    file_r := make([]error, len(c.file))
+    for n, f := range c.file {
+        file_r[n] = f.handle()
+    }
+    fmt.Printf("Number of Debian packages to be targeted: %s %s", strconv.Itoa(len(c.deb)), "\n")
+    deb_r := make([]error, len(c.deb))
+    for n, d := range c.deb {
+        deb_r[n] = d.handle()
+    }
+    fmt.Printf("Number of system services to be targeted: %s %s", strconv.Itoa(len(c.service)), "\n")
+    service_r := make([]error, len(c.service))
+    for n, s := range c.service {
+        service_r[n] = s.handle()
+    }
+    r.Results["file"], r.Results["deb"], r.Results["service"], r.End = file_r, deb_r, service_r, time.Now()
+*/
     fmt.Printf("Number of directives to execute: %s %s", strconv.Itoa(len(c.directives)), "\n")
     for n, d := range c.directives {
         r.Results[n] = d.handle()
     }
-    r.End = time.Now()
     return
 }
 
@@ -232,11 +256,8 @@ func main() {
     config_file := ConfigFile{Path: config_file_path}
     e := config_file.init()
     if e == nil {
-        fmt.Printf("Number of directives: %s", strconv.Itoa(len(config_file.directives)))
-/*
-        run := config_file.Config.Execute()
+        run := config_file.Execute()
         y, _ := yaml.Marshal(run)
         fmt.Print(string(y))
-*/
     }
 }
