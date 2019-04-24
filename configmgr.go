@@ -13,34 +13,34 @@ import (
 )
 
 type file struct {
-    Path string
-    Owner int
-    Group int
-    Mode os.FileMode
-    Create bool
-    Directory bool
-    Content []byte
+    path string
+    owner int
+    group int
+    mode os.FileMode
+    create bool
+    directory bool
+    content []byte
 }
 
 type deb struct {
-    Name string
-    Install bool
-    Remove bool
-    Upgrade bool
+    name string
+    install bool
+    remove bool
+    upgrade bool
 }
 
 type service struct {
-    Name string
-    Running bool
-    Restart bool
+    name string
+    running bool
+    restart bool
 }
 
 type Run struct {
-    Start time.Time
-    End time.Time
-    Config config
+    start time.Time
+    end time.Time
+    config config
     // TODO: IMPLEMENT BETTER NAMING (IDEALLY USING A CHECKSUM) FOR ITERATIONS OF A DIRECTIVE.
-    Results map[int]error
+    results map[int]error
 }
 
 type config interface {
@@ -50,19 +50,20 @@ type config interface {
 
 type directive interface {
     handle() error
+    Type() string
 }
 
 type ConfigFile struct {
-    Path string
-    Size int
-    directives []directive `yaml:"directives"`
+    path string
+    size int
+    directives []directive
 }
 
 func (c ConfigFile) init() (e error) {
-    fmt.Printf("Config File Path: %s %s", c.Path, "\n")
-    file_p, e := os.Open(c.Path)
+    fmt.Printf("Config File Path: %s %s", c.path, "\n")
+    file_p, e := os.Open(c.path)
     if e == nil {
-        i, e := file_p.Stat()
+        i, e := file_p.stat()
         if e != nil {
             fmt.Print(e.Error())
         }
@@ -73,13 +74,13 @@ func (c ConfigFile) init() (e error) {
         fmt.Printf("[FATAL] Could not open config file. %s", e.Error())
         return
     }
-    y := make([]byte, c.Size)
+    y := make([]byte, c.size)
     n, e := file_p.Read(y)
     if e != nil {
         fmt.Print(e.Error())
     }
-    if n != c.Size {
-        fmt.Printf("[WARN] Number of bytes read into config array (%s) does not match config file size (%s). Some directives may have been truncated.", string(n), string(c.Size))
+    if n != c.size {
+        fmt.Printf("[WARN] Number of bytes read into config array (%s) does not match config file size (%s). Some directives may have been truncated.", string(n), string(c.size))
     }
     e = yaml.Unmarshal(y, &c)
     if e != nil {
@@ -89,16 +90,14 @@ func (c ConfigFile) init() (e error) {
 }
 
 func (c *ConfigFile) UnmarshalYAML(unmarshal func(interface{}) error) (e error) {
-    yamlConfigFile := make(map[string][]interface{})
+    yamlConfigFile := make(map[string]interface)
     e = unmarshal(&yamlConfigFile)
     if e != nil {
         fmt.Printf(e.Error())
         return
     }
-    for _, d := range yamlConfigFile["directives"] {
-        if r, t := d.(directive); t {
-            c.directives = append(c.directives, r)
-        }
+    for _, d := range yamlConfigFile {
+        
     }
     return
 }
