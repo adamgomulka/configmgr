@@ -24,8 +24,7 @@ type file struct {
 
 type deb struct {
     name string
-    install bool
-    remove bool
+    installed bool
     upgrade bool
 }
 
@@ -56,7 +55,27 @@ type directive interface {
 type ConfigFile struct {
     path string
     size int
-    directives []directive
+    directives struct {
+        files []struct {
+            path string `yaml:"path"`
+            owner int `yaml:"owner"`
+            group int `yaml:"group"`
+            mode int `yaml:"mode"`
+            directory bool `yaml;"directory"`
+            create bool `yaml:"create"`
+            content []byte `yaml:content"`
+        } `yaml:"file"`
+        debs []struct {
+            name string `yaml:"name"`
+            install bool `yaml:"install"`
+            upgrade bool `yaml:"upgrade"`
+        } `yaml:"deb"`
+        services []struct {
+            name string `yaml: "name"`
+            running bool `yaml:"running"`
+            restart bool `yaml:"restart"`
+        } `yaml:"service"`
+    } `yaml:"directive"`
 }
 
 func (c ConfigFile) init() (e error) {
