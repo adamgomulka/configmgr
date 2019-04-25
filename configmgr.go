@@ -6,16 +6,7 @@ import (
     "fmt"
     "bufio"
     "io/ioutil"
-    "time"
 )
-
-type Run struct {
-    Start time.Time
-    End time.Time
-    Config []Directive
-    // TODO: IMPLEMENT BETTER NAMING (IDEALLY USING A CHECKSUM) FOR ITERATIONS OF A DIRECTIVE.
-    Results map[string][]error
-}
 
 type File struct {
     Path string
@@ -42,7 +33,7 @@ type Service struct {
 type Directive interface {
     handle() error
 }
-
+/*
 var Config = []Directive{
     Deb{
         Name: "nginx",
@@ -82,39 +73,6 @@ var Config = []Directive{
         Running: true,
         Restart: true,
     },
-}
-
-
-/*
-func (c ConfigFile) init() (e error) {
-    fmt.Printf("Config File Path: %s %s", c.Path, "\n")
-    file_p, e := os.Open(c.Path)
-    if e == nil {
-        i, e := file_p.Stat()
-        if e != nil {
-            fmt.Print(e.Error())
-        }
-        fmt.Printf("Pointer created. File Name (as seen by pointer) is: %s %s", i.Name(), "\n")
-        fmt.Printf("Config file size: %s %s", strconv.FormatInt(i.Size(), 10), "\n")
-        c.Size = int(i.Size())
-    } else {
-        fmt.Printf("[FATAL] Could not open config file. %s", e.Error())
-        return
-    }
-    y := make([]byte, c.Size)
-    n, e := file_p.Read(y)
-    fmt.Printf("File contents: %s %s", string(y), "\n")
-    if e != nil {
-        fmt.Print(e.Error())
-    }
-    if n != c.Size {
-        fmt.Printf("[WARN] Number of bytes read into config array (%s) does not match config file size (%s). Some directives may have been truncated.", string(n), string(c.Size))
-    }
-    e = yaml.Unmarshal(y, &c.Directives)
-    if e != nil {
-        fmt.Print(e.Error())
-    }
-    return
 }
 */
 
@@ -238,36 +196,6 @@ func (s Service) handle() (e error) {
     }
     return
 }
-
-/*
-
-func (c ConfigFile) Execute() (r Run) {
-    r = Run{Start: time.Now(), Results: map[string][]error{}, Config: &c}
-    fmt.Printf("Number of Files to be Targeted: %s %s", strconv.Itoa(len(c.Directives.Files)), "\n")
-    file_r := make([]error, len(c.Directives.Files))
-    for n, f := range c.Directives.Files {
-        file_r[n] = f.handle()
-    }
-    fmt.Printf("Number of Debian packages to be targeted: %s %s", strconv.Itoa(len(c.Directives.Debs)), "\n")
-    deb_r := make([]error, len(c.Directives.Debs))
-    for n, d := range c.Directives.Debs {
-        deb_r[n] = d.handle()
-    }
-    fmt.Printf("Number of system services to be targeted: %s %s", strconv.Itoa(len(c.Directives.Services)), "\n")
-    service_r := make([]error, len(c.Directives.Services))
-    for n, s := range c.Directives.Services {
-        service_r[n] = s.handle()
-    }
-    r.Results["file"], r.Results["deb"], r.Results["service"], r.End = file_r, deb_r, service_r, time.Now()
-
-    fmt.Printf("Number of directives to execute: %s %s", strconv.Itoa(len(c.directives)), "\n")
-    for n, d := range c.directives {
-        r.Results[n] = d.handle()
-    }
-    return
-}
-
-*/
 
 func main() {
     results := make([]error, len(Config))
