@@ -32,7 +32,7 @@ type File struct {
     Mode int `yaml:"mode"`
     Directory bool `yaml:"directory"`
     Create bool `yaml:"create"`
-    Content []byte `yaml:"content",omitempty`
+    Content string `yaml:"content",omitempty`
 }
 
 type Deb struct {
@@ -74,13 +74,14 @@ func (c ConfigFile) init() (e error) {
     }
     y := make([]byte, c.Size)
     n, e := file_p.Read(y)
+    fmt.Printf("File contents: %s %s", string(y), "\n")
     if e != nil {
         fmt.Print(e.Error())
     }
     if n != c.Size {
         fmt.Printf("[WARN] Number of bytes read into config array (%s) does not match config file size (%s). Some directives may have been truncated.", string(n), string(c.Size))
     }
-    e = yaml.Unmarshal(y, &c)
+    e = yaml.Unmarshal(y, &c.Directives)
     if e != nil {
         fmt.Print(e.Error())
     }
@@ -99,7 +100,7 @@ func (f File) handle() (e error) {
                 }
             } else {
                 if len(f.Content) > 0 {
-                    e = ioutil.WriteFile(f.Path, f.Content, os.FileMode(f.Mode))
+                    e = ioutil.WriteFile(f.Path, []byte(f.Content), os.FileMode(f.Mode))
                     if e != nil {
                         fmt.Print(e.Error())
                         return
