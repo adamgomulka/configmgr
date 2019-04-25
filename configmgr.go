@@ -12,34 +12,12 @@ import (
     "gopkg.in/yaml.v2"
 )
 
-type file struct {
-    path string
-    owner int
-    group int
-    mode os.FileMode
-    create bool
-    directory bool
-    content []byte
-}
-
-type deb struct {
-    name string
-    installed bool
-    upgrade bool
-}
-
-type service struct {
-    name string
-    running bool
-    restart bool
-}
-
 type Run struct {
-    start time.Time
-    end time.Time
-    config config
+    Start time.Time
+    End time.Time
+    Config *ConfigFile
     // TODO: IMPLEMENT BETTER NAMING (IDEALLY USING A CHECKSUM) FOR ITERATIONS OF A DIRECTIVE.
-    results map[int]error
+    Results map[string][]error
 }
 
 type config interface {
@@ -47,42 +25,43 @@ type config interface {
     Execute() Run
 }
 
-type directive interface {
-    handle() error
-    Type() string
+type File struct {
+    Path string `yaml:"path"`
+    Owner int `yaml:"owner"`
+    Group int `yaml:"group"`
+    Mode int `yaml:"mode"`
+    Directory bool `yaml:"directory"`
+    Create bool `yaml:"create"`
+    Content []byte `yaml:"content",omitempty`
+}
+
+type Deb struct {
+    Name string `yaml:"name"`
+    Install bool `yaml:"install"`
+    Upgrade bool `yaml:"upgrade"`
+}
+
+type Service struct {
+    Name string `yaml:"name"`
+    Running bool `yaml:"running"`
+    Restart bool `yaml:"restart"`
 }
 
 type ConfigFile struct {
-    path string
-    size int
-    directives struct {
-        files []struct {
-            path string `yaml:"path"`
-            owner int `yaml:"owner"`
-            group int `yaml:"group"`
-            mode int `yaml:"mode"`
-            directory bool `yaml;"directory"`
-            create bool `yaml:"create"`
-            content []byte `yaml:content"`
-        } `yaml:"file"`
-        debs []struct {
-            name string `yaml:"name"`
-            install bool `yaml:"install"`
-            upgrade bool `yaml:"upgrade"`
-        } `yaml:"deb"`
-        services []struct {
-            name string `yaml: "name"`
-            running bool `yaml:"running"`
-            restart bool `yaml:"restart"`
-        } `yaml:"service"`
-    } `yaml:"directive"`
+    Path string
+    Size int
+    Directives struct {
+        Files []File `yaml:"files"`
+        Debs []Deb `yaml:"debs"`
+        Services []Service `yaml:"services"`
+    } `yaml:"directives"`
 }
 
 func (c ConfigFile) init() (e error) {
-    fmt.Printf("Config File Path: %s %s", c.path, "\n")
-    file_p, e := os.Open(c.path)
+    fmt.Printf("Config File Path: %s %s", c.Path, "\n")
+    file_p, e := os.Open(c.Path)
     if e == nil {
-        i, e := file_p.stat()
+        i, e := file_p.Stat()
         if e != nil {
             fmt.Print(e.Error())
         }
@@ -93,13 +72,13 @@ func (c ConfigFile) init() (e error) {
         fmt.Printf("[FATAL] Could not open config file. %s", e.Error())
         return
     }
-    y := make([]byte, c.size)
+    y := make([]byte, c.Size)
     n, e := file_p.Read(y)
     if e != nil {
         fmt.Print(e.Error())
     }
-    if n != c.size {
-        fmt.Printf("[WARN] Number of bytes read into config array (%s) does not match config file size (%s). Some directives may have been truncated.", string(n), string(c.size))
+    if n != c.Size {
+        fmt.Printf("[WARN] Number of bytes read into config array (%s) does not match config file size (%s). Some directives may have been truncated.", string(n), string(c.Size))
     }
     e = yaml.Unmarshal(y, &c)
     if e != nil {
@@ -108,32 +87,19 @@ func (c ConfigFile) init() (e error) {
     return
 }
 
-func (c *ConfigFile) UnmarshalYAML(unmarshal func(interface{}) error) (e error) {
-    yamlConfigFile := make(map[string]interface)
-    e = unmarshal(&yamlConfigFile)
-    if e != nil {
-        fmt.Printf(e.Error())
-        return
-    }
-    for _, d := range yamlConfigFile {
-        
-    }
-    return
-}
-
-func (f file) handle() (e error) {
+func (f File) handle() (e error) {
     _, e = os.Open(f.Path)
     if os.IsNotExist(e) {
         if f.Create {
             if f.Directory {
-                e = os.Mkdir(f.Path, f.Mode)
+                e = os.Mkdir(f.Path, os.FileMode(f.Mode))
                 if e != nil {
                     fmt.Print(e.Error())
                     return
                 }
             } else {
                 if len(f.Content) > 0 {
-                    e = ioutil.WriteFile(f.Path, f.Content, f.Mode)
+                    e = ioutil.WriteFile(f.Path, f.Content, os.FileMode(f.Mode))
                     if e != nil {
                         fmt.Print(e.Error())
                         return
@@ -158,7 +124,7 @@ func (f file) handle() (e error) {
         fmt.Print(e.Error())
         return
     }
-    e = os.Chmod(f.Path, f.Mode)
+    e = os.Chmod(f.Path, os.FileMode(f.Mode))
     if e != nil {
         fmt.Print(e.Error())
         return
@@ -166,7 +132,7 @@ func (f file) handle() (e error) {
     return
 }
 
-func (d deb) handle() (e error) {
+func (d Deb) handle() (e error) {
     e = nil
     if d.Install {
         cmd := exec.Command("apt", "install", "-y", d.Name)
@@ -187,7 +153,7 @@ func (d deb) handle() (e error) {
             }
         }
         return
-    } else if d.Remove {
+    } else if !(d.Install) {
         if d.checkDebInstalledStatus() {
             cmd := exec.Command("apt", "remove", "-y", d.Name)
             e = cmd.Run()
@@ -204,7 +170,7 @@ func (d deb) handle() (e error) {
     return
 }
 
-func (d deb) checkDebInstalledStatus() (i bool) {
+func (d Deb) checkDebInstalledStatus() (i bool) {
     c := exec.Command("dpkg", "-l")
     o, _ := c.StdoutPipe()
     c.Run()
@@ -217,7 +183,7 @@ func (d deb) checkDebInstalledStatus() (i bool) {
     return false
 }
 
-func (s service) handle() (e error) {
+func (s Service) handle() (e error) {
     if s.Running {
         if s.Restart{
             c := exec.Command("service", s.Name, "restart")
@@ -243,29 +209,30 @@ func (s service) handle() (e error) {
 }
 
 func (c ConfigFile) Execute() (r Run) {
-    r = Run{Start: time.Now(), Results: map[int]error{}, Config: &c}
-/*
-    fmt.Printf("Number of Files to be Targeted: %s %s", strconv.Itoa(len(c.file)), "\n")
-    file_r := make([]error, len(c.file))
-    for n, f := range c.file {
+    r = Run{Start: time.Now(), Results: map[string][]error{}, Config: &c}
+    fmt.Printf("Number of Files to be Targeted: %s %s", strconv.Itoa(len(c.Directives.Files)), "\n")
+    file_r := make([]error, len(c.Directives.Files))
+    for n, f := range c.Directives.Files {
         file_r[n] = f.handle()
     }
-    fmt.Printf("Number of Debian packages to be targeted: %s %s", strconv.Itoa(len(c.deb)), "\n")
-    deb_r := make([]error, len(c.deb))
-    for n, d := range c.deb {
+    fmt.Printf("Number of Debian packages to be targeted: %s %s", strconv.Itoa(len(c.Directives.Debs)), "\n")
+    deb_r := make([]error, len(c.Directives.Debs))
+    for n, d := range c.Directives.Debs {
         deb_r[n] = d.handle()
     }
-    fmt.Printf("Number of system services to be targeted: %s %s", strconv.Itoa(len(c.service)), "\n")
-    service_r := make([]error, len(c.service))
-    for n, s := range c.service {
+    fmt.Printf("Number of system services to be targeted: %s %s", strconv.Itoa(len(c.Directives.Services)), "\n")
+    service_r := make([]error, len(c.Directives.Services))
+    for n, s := range c.Directives.Services {
         service_r[n] = s.handle()
     }
     r.Results["file"], r.Results["deb"], r.Results["service"], r.End = file_r, deb_r, service_r, time.Now()
-*/
+
+/*
     fmt.Printf("Number of directives to execute: %s %s", strconv.Itoa(len(c.directives)), "\n")
     for n, d := range c.directives {
         r.Results[n] = d.handle()
     }
+*/
     return
 }
 
