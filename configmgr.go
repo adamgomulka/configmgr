@@ -7,13 +7,12 @@ import (
     "bufio"
     "io/ioutil"
     "time"
-    "strconv"
 )
 
 type Run struct {
     Start time.Time
     End time.Time
-    Config *ConfigFile
+    Config []Directive
     // TODO: IMPLEMENT BETTER NAMING (IDEALLY USING A CHECKSUM) FOR ITERATIONS OF A DIRECTIVE.
     Results map[string][]error
 }
@@ -25,7 +24,7 @@ type File struct {
     Mode int
     Directory bool
     Create bool
-    Content []byte
+    Content string
 }
 
 type Deb struct {
@@ -44,45 +43,47 @@ type Directive interface {
     handle() error
 }
 
-var Config []Directive{
+var Config = []Directive{
     Deb{
         Name: "nginx",
         Install: true,
-        Upgrade: true
+        Upgrade: true,
     },
     Deb{
         Name: "php5-fpm",
         Install: true,
-        Upgrade: true
+        Upgrade: true,
     },
     File{
-       Path: "/etc/nginx/sites-enabled/default",
+       Path: "/etc/nginx/sites-available/default",
        Owner: 1000,
        Group: 1000,
        Directory: false,
        Create: true,
-       Content: []byte{"server {\n\tlisten 80 default_server;\n\troot /var/www/html;\n\tindex index.php;\n\tlocation ~ \\.php$ {\n\t\tinclude snippets/fastcgi-php.conf;\n\t\tfastcgi_pass unix:/var/run/php7.2-fpm.sock;\n\t}\n}"}
+       Content: "server {\n\tlisten 80 default_server;\n\troot /usr/share/nginx/html;\n\tindex index.php;\n\tlocation ~ \\.php$ {\n\t\ttry_files $uri =404;\n\t\tfastcgi_split_path_info ^(.+\\.php)(/.+)$;\n\t\tinclude fastcgi_params;\n\t\tfastcgi_pass unix:/var/run/php5-fpm.sock;\n\t\tfastcgi_index index.php;\n\t\tfastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;\n\t}\n}",
     },
     File{
-        Path: "/var/www/html/index.php",
-        Owner: 1000
-        Group: 1000
+        Path: "/usr/share/nginx/html/index.php",
+        Owner: 1000,
+        Group: 1000,
         Directory: false,
         Create: true,
-        Content: []byte{'<?php\nheader("Content-Type: text/plain");\necho "Hello, world!\n";\n'}
+        Content: "<?php\nheader('Content-Type: text/plain');\necho 'Hello, world!';",
     },
     Service{
         Name: "php5-fpm",
         Running: true,
-        Restart: true
+        Restart: true,
     },
     Service{
         Name: "nginx",
         Running: true,
-        Restart: true
-    }
+        Restart: true,
+    },
 }
 
+
+/*
 func (c ConfigFile) init() (e error) {
     fmt.Printf("Config File Path: %s %s", c.Path, "\n")
     file_p, e := os.Open(c.Path)
@@ -113,6 +114,7 @@ func (c ConfigFile) init() (e error) {
     }
     return
 }
+*/
 
 func (f File) handle() (e error) {
     _, e = os.Open(f.Path)
@@ -235,6 +237,8 @@ func (s Service) handle() (e error) {
     return
 }
 
+/*
+
 func (c ConfigFile) Execute() (r Run) {
     r = Run{Start: time.Now(), Results: map[string][]error{}, Config: &c}
     fmt.Printf("Number of Files to be Targeted: %s %s", strconv.Itoa(len(c.Directives.Files)), "\n")
@@ -254,22 +258,19 @@ func (c ConfigFile) Execute() (r Run) {
     }
     r.Results["file"], r.Results["deb"], r.Results["service"], r.End = file_r, deb_r, service_r, time.Now()
 
-/*
     fmt.Printf("Number of directives to execute: %s %s", strconv.Itoa(len(c.directives)), "\n")
     for n, d := range c.directives {
         r.Results[n] = d.handle()
     }
-*/
     return
 }
 
+*/
+
 func main() {
-    config_file_path := os.Args[1]
-    config_file := ConfigFile{Path: config_file_path}
-    e := config_file.init()
-    if e == nil {
-        run := config_file.Execute()
-        y, _ := yaml.Marshal(run)
-        fmt.Print(string(y))
+    results := make([]error, len(Config))
+    for n, d := range Config {
+        results[n] = d.handle()
     }
+    fmt.Print(results)
 }
