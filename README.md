@@ -2,7 +2,7 @@
 
 ### Introduction
 
-`configmgr` is a utility for applying defined configuration parameters against resources on your system. It takes the path to a YAML-based configuration file as its sole argument, and outputs a YAML-formatted report detailing its activities and their results.
+`configmgr` is a utility for applying defined configuration parameters against resources on your system. It takes config directives as Golang structs (defined in config.go, a YAML version is planned) and applies them. New configs can be added by modifying config.go and building or running the project.
 
 ### Resource Types
 
