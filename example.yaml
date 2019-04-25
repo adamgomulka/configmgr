@@ -1,8 +1,0 @@
-file:
-  - Path: "/tmp/testfile"
-    Owner: 1000
-    Group: 1000
-    Mode: 0644
-    Create: true
-    Directory: false
-    Content: "test"

@@ -8,8 +8,6 @@ import (
     "io/ioutil"
     "time"
     "strconv"
-
-    "gopkg.in/yaml.v2"
 )
 
 type Run struct {
@@ -20,41 +18,69 @@ type Run struct {
     Results map[string][]error
 }
 
-type config interface {
-    init() error
-    Execute() Run
-}
-
 type File struct {
-    Path string `yaml:"path"`
-    Owner int `yaml:"owner"`
-    Group int `yaml:"group"`
-    Mode int `yaml:"mode"`
-    Directory bool `yaml:"directory"`
-    Create bool `yaml:"create"`
-    Content string `yaml:"content",omitempty`
+    Path string
+    Owner int
+    Group int
+    Mode int
+    Directory bool
+    Create bool
+    Content []byte
 }
 
 type Deb struct {
-    Name string `yaml:"name"`
-    Install bool `yaml:"install"`
-    Upgrade bool `yaml:"upgrade"`
+    Name string
+    Install bool
+    Upgrade bool
 }
 
 type Service struct {
-    Name string `yaml:"name"`
-    Running bool `yaml:"running"`
-    Restart bool `yaml:"restart"`
+    Name string
+    Running bool
+    Restart bool
 }
 
-type ConfigFile struct {
-    Path string
-    Size int
-    Directives struct {
-        Files []File `yaml:"files"`
-        Debs []Deb `yaml:"debs"`
-        Services []Service `yaml:"services"`
-    } `yaml:"directives"`
+type Directive interface {
+    handle() error
+}
+
+var Config []Directive{
+    Deb{
+        Name: "nginx",
+        Install: true,
+        Upgrade: true
+    },
+    Deb{
+        Name: "php5-fpm",
+        Install: true,
+        Upgrade: true
+    },
+    File{
+       Path: "/etc/nginx/sites-enabled/default",
+       Owner: 1000,
+       Group: 1000,
+       Directory: false,
+       Create: true,
+       Content: []byte{"server {\n\tlisten 80 default_server;\n\troot /var/www/html;\n\tindex index.php;\n\tlocation ~ \\.php$ {\n\t\tinclude snippets/fastcgi-php.conf;\n\t\tfastcgi_pass unix:/var/run/php7.2-fpm.sock;\n\t}\n}"}
+    },
+    File{
+        Path: "/var/www/html/index.php",
+        Owner: 1000
+        Group: 1000
+        Directory: false,
+        Create: true,
+        Content: []byte{'<?php\nheader("Content-Type: text/plain");\necho "Hello, world!\n";\n'}
+    },
+    Service{
+        Name: "php5-fpm",
+        Running: true,
+        Restart: true
+    },
+    Service{
+        Name: "nginx",
+        Running: true,
+        Restart: true
+    }
 }
 
 func (c ConfigFile) init() (e error) {
